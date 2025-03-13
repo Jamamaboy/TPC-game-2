@@ -9,7 +9,7 @@ export default function AudioButton() {
 
   useEffect(() => {
     // สร้าง audio element ครั้งเดียวเมื่อ component mount
-    const audioElement = new Audio('/audio/song.mp3');
+    const audioElement = new Audio('/Audio/song.mp3');
     audioElement.loop = true;
     setAudio(audioElement);
 
@@ -22,7 +22,7 @@ export default function AudioButton() {
     };
   }, []);
 
-  
+
   const toggleAudio = () => {
     if (!audio) return;
 
