@@ -10,36 +10,97 @@ import NavigationOverlay from '@/components/NavigationOverlay';
 import AudioButton from '@/components/AudioButton';
 import { useEffect, useState, useRef } from 'react';
 
-// Define page type constants
-const PAGE_START = [1]; // หน้าเริ่มต้น
+// กำหนดประเภทของหน้า (Page Type Constants)
+const PAGE_START = [1];
 const PAGE_BACK = [2, 4, 6, 8, 10, 12, 13, 15, 16];
 const PAGE_BACK_N = [3, 11, 17, 19];
 const PAGE_QUIZ = [5, 7, 9, 14, 18];
 const PAGE_PP = [20];
 const PAGE_RESULTS = [21];
-
-// Pages where we should allow navigation by clicking left/right sides of the screen
-// Exclude quiz pages and results page where we need more precise interaction
 const NAVIGATION_ENABLED_PAGES = [...PAGE_BACK, ...PAGE_BACK_N, ...PAGE_START];
+
+// จำนวนหน้าทั้งหมด
+const TOTAL_PAGES = 21;
+
 
 function MainApp() {
   const { state, setContentDimensions } = useAppState();
-  const [imageSrc, setImageSrc] = useState(null);
-  const [videoSrc, setVideoSrc] = useState(null);
+  const [preloadedImages, setPreloadedImages] = useState({});
+  const [preloadedVideos, setPreloadedVideos] = useState({});
   const [starImage, setStarImage] = useState(null);
+  const imageRef = useRef(null);
   const resultImageRef = useRef(null);
+  const [isImageLoaded, setIsImageLoaded] = useState(false); // ตรวจสอบว่าภาพโหลดเสร็จหรือยัง
 
-  // Function to calculate and set star image for results page
+  // โหลดภาพและวิดีโอล่วงหน้าเมื่อเริ่มต้น
+  useEffect(() => {
+    const preloadAssets = async () => {
+      const imagePromises = [];
+      const videoPromises = [];
+
+      // โหลดภาพของทุกหน้า
+      for (let i = 1; i <= TOTAL_PAGES; i++) {
+        const imagePath = `/images/layer1/${i}.webp`;
+        imagePromises.push(
+          new Promise((resolve) => {
+            const img = new Image();
+            img.src = imagePath;
+            img.onload = () => resolve({ [i]: imagePath });
+            img.onerror = () => resolve({ [i]: null });
+          })
+        );
+      }
+
+      // โหลดวิดีโอของทุกหน้า
+      for (let i = 1; i <= TOTAL_PAGES; i++) {
+        const videoPath = `/videos/layer0/${i}.webm`;
+        videoPromises.push(
+          new Promise((resolve) => {
+            const video = document.createElement('video');
+            video.src = videoPath;
+            video.onloadeddata = () => resolve({ [i]: videoPath });
+            video.onerror = () => resolve({ [i]: null });
+          })
+        );
+      }
+
+      // โหลดภาพดาวสำหรับหน้า Results
+      const starImages = [
+        '/images/stars/ASTER.png',
+        '/images/stars/CASSIOPHIA.png',
+        '/images/stars/ESTELLA.png',
+        '/images/stars/LYNA.png',
+        '/images/stars/NOVA.png'
+      ];
+      starImages.forEach((starPath) => {
+        imagePromises.push(
+          new Promise((resolve) => {
+            const img = new Image();
+            img.src = starPath;
+            img.onload = () => resolve({ [starPath]: starPath });
+            img.onerror = () => resolve({ [starPath]: null });
+          })
+        );
+      });
+
+      const loadedImages = await Promise.all(imagePromises);
+      const loadedVideos = await Promise.all(videoPromises);
+
+      // แปลงข้อมูลเป็น Object
+      const imageMap = Object.assign({}, ...loadedImages);
+      const videoMap = Object.assign({}, ...loadedVideos);
+
+      setPreloadedImages(imageMap);
+      setPreloadedVideos(videoMap);
+    };
+
+    preloadAssets();
+  }, []);
+
+  // คำนวณภาพดาวสำหรับหน้า Results
   useEffect(() => {
     if (PAGE_RESULTS.includes(state.page)) {
-      // Calculate total points - ใช้ผลรวมจากคะแนนทั้งหมด
       const totalPoints = state.points.reduce((acc, curr) => acc + curr, 0);
-
-      console.log('Total points calculated:', totalPoints);
-      console.log('Points breakdown:', state.points);
-      console.log('Page points detailed:', state.pagePoints);
-
-      // Determine which star to show based on points
       let starPath = '';
 
       if (totalPoints >= 0 && totalPoints <= 5.70) {
@@ -54,64 +115,47 @@ function MainApp() {
         starPath = '/images/stars/NOVA.png';
       }
 
-
-      console.log('Star selected:', starPath);
       setStarImage(starPath);
     } else {
       setStarImage(null);
     }
-  }, [state.page, state.points, state.pagePoints]);
+  }, [state.page, state.points]);
 
-  // Function to get the appropriate image source for the current page
-  useEffect(() => {
-    const getPageMedia = async () => {
-      // ถ้าเป็นหน้าผลลัพธ์ จะใช้รูปดาวแทน
-      if (PAGE_RESULTS.includes(state.page)) {
-        setImageSrc(null);
-      } else {
-        // Determine image source for normal pages
-        try {
-          const imageNum = state.page;
-          const imagePath = `/images/layer1/${imageNum}.webp`;
-          setImageSrc(imagePath);
-        } catch (error) {
-          setImageSrc(null);
-          console.error('Image load error:', error);
-        }
-      }
-
-      // Determine video source (ใช้เหมือนเดิม)
-      try {
-        const videoPath = `/videos/layer0/${state.page}.webm`;
-        setVideoSrc(videoPath);
-      } catch (error) {
-        setVideoSrc(null);
-      }
-    };
-
-    getPageMedia();
-  }, [state.page]);
-
-  // Handle image load to set dimensions
+  // จัดการเมื่อภาพโหลดเสร็จเพื่อกำหนดขนาดเนื้อหา
   const handleImageLoad = (event) => {
     const img = event.currentTarget;
     setContentDimensions(img.offsetHeight, img.offsetWidth);
+    setIsImageLoaded(true); // ระบุว่าภาพโหลดเสร็จแล้ว
   };
 
-  // Handle video load to set dimensions
+  // จัดการเมื่อวิดีโอโหลดเสร็จเพื่อกำหนดขนาดเนื้อหา
   const handleVideoLoad = (event) => {
     const video = event.currentTarget;
     setContentDimensions(video.offsetHeight, video.offsetWidth);
   };
 
-  // Handle star image load
+  // จัดการเมื่อภาพดาวโหลดเสร็จเพื่อกำหนดขนาดเนื้อหา
   const handleStarImageLoad = (event) => {
     const img = event.currentTarget;
     setContentDimensions(img.offsetHeight, img.offsetWidth);
     resultImageRef.current = img;
   };
 
-  // Render the appropriate component based on the current page
+  // อัปเดตขนาดเนื้อหาเมื่อหน้าต่างถูกปรับขนาด เฉพาะเมื่อภาพโหลดเสร็จ
+  useEffect(() => {
+    const handleResize = () => {
+      if (isImageLoaded && imageRef.current) {
+        setContentDimensions(imageRef.current.offsetHeight, imageRef.current.offsetWidth);
+      } else if (resultImageRef.current) {
+        setContentDimensions(resultImageRef.current.offsetHeight, resultImageRef.current.offsetWidth);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize(); // เรียกครั้งแรก (แต่จะไม่กำหนดถ้าภาพยังไม่โหลด)
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isImageLoaded, state.page, setContentDimensions]);
+
+  // แสดงผลคอมโพเนนต์ของหน้า
   const renderPageComponent = () => {
     if (PAGE_START.includes(state.page)) {
       return <PageStart />;
@@ -124,23 +168,24 @@ function MainApp() {
     } else if (PAGE_RESULTS.includes(state.page)) {
       return <PageResults starImageSrc={starImage} />;
     }
-
     return null;
   };
 
-  // Check if navigation overlay should be enabled for the current page
-  // ไม่แสดง NavigationOverlay ในหน้า quiz และหน้าผลลัพธ์
   const shouldShowNavigationOverlay = NAVIGATION_ENABLED_PAGES.includes(state.page) &&
                                     !PAGE_QUIZ.includes(state.page) &&
                                     !PAGE_RESULTS.includes(state.page);
 
+  const currentImageSrc = preloadedImages[state.page];
+  const currentVideoSrc = preloadedVideos[state.page];
+
   return (
     <main className="flex justify-center items-center min-h-screen bg-aquamarine relative">
-      {/* Background image สำหรับหน้าทั่วไป */}
-      {imageSrc && (
+      {/* ภาพพื้นหลัง */}
+      {currentImageSrc && !PAGE_RESULTS.includes(state.page) && (
         <div className="absolute inset-0 z-2 flex items-center justify-center px-3 py-3">
           <img
-            src={imageSrc}
+            ref={imageRef}
+            src={currentImageSrc}
             alt={`Page ${state.page}`}
             onLoad={handleImageLoad}
             className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg"
@@ -148,10 +193,11 @@ function MainApp() {
         </div>
       )}
 
-      {/* Star image สำหรับหน้าผลลัพธ์ */}
+      {/* ภาพดาว */}
       {starImage && PAGE_RESULTS.includes(state.page) && (
         <div className="absolute inset-0 z-2 flex items-center justify-center px-3 pb-16 pt-3">
           <img
+            ref={resultImageRef}
             src={starImage}
             alt="Your Star Result"
             onLoad={handleStarImageLoad}
@@ -160,29 +206,23 @@ function MainApp() {
         </div>
       )}
 
-      {/* Background video */}
-      {videoSrc && (
+      {/* วิดีโอพื้นหลัง */}
+      {currentVideoSrc && (
         <div className="absolute inset-0 w-full h-full z-1">
           <video
-            src={videoSrc}
+            src={currentVideoSrc}
             autoPlay
             muted
             loop
             playsInline
             onLoadedMetadata={handleVideoLoad}
             className="w-full h-full object-cover"
-          >
-          </video>
+          />
         </div>
       )}
 
-      {/* Navigation Overlay - Only show on pages where it makes sense */}
       {shouldShowNavigationOverlay && <NavigationOverlay />}
-
-      {/* Current page component */}
       {renderPageComponent()}
-
-      {/* Audio control button */}
       <AudioButton />
     </main>
   );

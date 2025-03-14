@@ -6,67 +6,68 @@ import { useState, useEffect } from 'react';
 export default function PageQuiz() {
   const { state, navigateTo, updatePagePoints } = useAppState();
   const [invisibleButtons, setInvisibleButtons] = useState([]);
+  const [viewportHeight, setViewportHeight] = useState(typeof window !== 'undefined' ? window.innerHeight : 0);
 
-  // สร้างปุ่มแบบ invisible ที่ตรงกับตำแหน่งตัวเลือกในรูปภาพ
+  // อัปเดต viewportHeight เมื่อหน้าต่างถูกรีไซส์
+  useEffect(() => {
+    const handleResize = () => {
+      setViewportHeight(window.innerHeight);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  // สร้างปุ่มโดยอิงจากความสูงของภาพ
   useEffect(() => {
     const getButtonPositions = () => {
-      const buttonPositions = [52, 62, 72, 82, 92];
-      const buttonHeight = 8; // ความสูงของปุ่มประมาณ 8% ของความสูงหน้าจอ
+      if (state.contentHeight <= 0) return; // ป้องกันการคำนวณถ้าขนาดภาพยังไม่พร้อม
 
-      // สร้างข้อมูลปุ่มจากตำแหน่งที่กำหนด
-      const buttons = buttonPositions.map((position, index) => ({
-        top: `${position - buttonHeight/2}%`, // ปรับให้ปุ่มอยู่ตรงกลางของตำแหน่งที่กำหนด
-        height: `${buttonHeight}%`,
-        index: index + 1
-      }));
+      const buttonPositions = [50, 58.7, 67.4, 76.5, 85]; // เปอร์เซ็นต์จากขอบบนของภาพ
+      const buttonHeightPercent = 7; // ความสูงปุ่ม 7% ของภาพ
+
+      // คำนวณ offset (ช่องว่างด้านบนของภาพ)
+      const offset = (viewportHeight - state.contentHeight) / 2;
+
+      const buttons = buttonPositions.map((position, index) => {
+        const topPx = offset + (position / 100 * state.contentHeight);
+        const heightPx = (buttonHeightPercent / 100 * state.contentHeight);
+
+        return {
+          top: topPx,
+          height: heightPx,
+          index: index + 1,
+        };
+      });
 
       setInvisibleButtons(buttons);
-
-      console.log(`Quiz Page ${state.page}: Setting up invisible buttons`);
-      console.log(`Button positions: ${buttonPositions.join('%, ')}%`);
-      console.log(`Button height: ${buttonHeight}%`);
     };
 
-    getButtonPositions();
-  }, [state.page]);
+    // เรียกเมื่อมี contentHeight
+    if (state.contentHeight > 0) {
+      getButtonPositions();
+    }
+  }, [state.page, state.contentHeight, viewportHeight]);
 
   const handleClick = (additionalPoint, buttonIndex) => {
-    console.log(`Quiz Page ${state.page}: Button ${buttonIndex} clicked`);
-    console.log(`Points awarded: ${additionalPoint}`);
-
-    // อัปเดตคะแนนสำหรับหน้านี้โดยเฉพาะ
     updatePagePoints(state.page, additionalPoint, buttonIndex);
-
-    // ไปยังหน้าถัดไป
     navigateTo(1);
   };
 
-  // Points mapping from the original app
   const getPointsForPage = (page, buttonIndex) => {
     const pointsMap = {
-      // Page 5 points
       5: [1.5, 0.8, 1.2, 1.0, 2.0],
-      // Page 7 points
       7: [2.0, 1.2, 1.5, 1.0, 0.8],
-      // Page 9 points
       9: [1.0, 1.2, 2.0, 0.8, 1.5],
-      // Page 14 points (was 13 in the original)
       14: [1.2, 2.0, 1.0, 1.5, 0.8],
-      // Page 18 points (was 15 in the original)
-      18: [0.8, 1.0, 2.0, 1.2, 1.5]
+      18: [0.8, 1.0, 2.0, 1.2, 1.5],
     };
-
-    // Return the point value for the current page and button
-    if (pointsMap[page] && pointsMap[page][buttonIndex - 1] !== undefined) {
-      return pointsMap[page][buttonIndex - 1];
-    }
-
-    return 0;
+    return pointsMap[page]?.[buttonIndex - 1] || 0;
   };
 
   return (
     <div className="absolute inset-0 z-20 pointer-events-none">
-      {/* แสดงปุ่มล่องหนเฉพาะในหน้า Quiz */}
       {[5, 7, 9, 14, 18].includes(state.page) && (
         <div className="relative w-full h-full">
           {invisibleButtons.map((button) => (
@@ -75,17 +76,14 @@ export default function PageQuiz() {
               onClick={() => handleClick(getPointsForPage(state.page, button.index), button.index)}
               className="absolute w-full pointer-events-auto"
               style={{
-                top: button.top,
-                height: button.height,
+                top: `${button.top}px`,
+                height: `${button.height}px`,
                 backgroundColor: 'transparent',
                 border: 'none',
-                outline: 'none'
+                outline: 'none',
               }}
               aria-label={`Option ${button.index}`}
-            >
-              {/* ถ้าต้องการแสดงตัวเลือกเพื่อการตรวจสอบ (debug) ให้เปิด comment บรรทัดนี้ */}
-              {/* <span className="bg-white bg-opacity-20 border border-white border-opacity-30 p-2 rounded">Option {button.index}</span> */}
-            </button>
+            />
           ))}
         </div>
       )}
