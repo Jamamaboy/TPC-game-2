@@ -201,7 +201,7 @@ function MainApp() {
             src={starImage}
             alt="Your Star Result"
             onLoad={handleStarImageLoad}
-            className="max-w-full max-h-[calc(100vh-150px)] w-auto h-auto object-contain rounded-lg"
+            className="max-w-full max-h-[calc(100lvh-5lvh)] flex justify-center items-center w-auto h-auto object-contain rounded-lg"
           />
         </div>
       )}
