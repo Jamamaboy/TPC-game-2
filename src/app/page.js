@@ -31,15 +31,38 @@ function MainApp() {
   const imageRef = useRef(null);
   const resultImageRef = useRef(null);
 
-  useEffect(() => {
-    if (PAGE_RESULTS.includes(state.page)) {
-      const totalPoints = state.points.reduce((acc, curr) => acc + curr, 0);
-      let starPath = totalPoints >= 0 && totalPoints <= 5.70 ? '/images/stars/NOVA.png' : '';
-      setStarImage(starPath);
-    } else {
-      setStarImage(null);
-    }
-  }, [state.page, state.points]);
+	useEffect(() => {
+		if (PAGE_RESULTS.includes(state.page)) {
+		  // Calculate total points - ใช้ผลรวมจากคะแนนทั้งหมด
+		  const totalPoints = state.points.reduce((acc, curr) => acc + curr, 0);
+
+		  console.log('Total points calculated:', totalPoints);
+		  console.log('Points breakdown:', state.points);
+		  console.log('Page points detailed:', state.pagePoints);
+
+		  // Determine which star to show based on points
+		  let starPath = '';
+
+		  if (totalPoints >= 0 && totalPoints <= 5.70) {
+			starPath = '/images/stars/ASTER.png';
+		  } else if (totalPoints > 5.70 && totalPoints <= 6.20) {
+			starPath = '/images/stars/CASSIOPHIA.png';
+		  } else if (totalPoints > 6.20 && totalPoints <= 6.70) {
+			starPath = '/images/stars/ESTELLA.png';
+		  } else if (totalPoints > 6.70 && totalPoints <= 7.30) {
+			starPath = '/images/stars/LYNA.png';
+		  } else {
+			starPath = '/images/stars/NOVA.png';
+		  }
+
+
+		  console.log('Star selected:', starPath);
+		  setStarImage(starPath);
+		} else {
+		  setStarImage(null);
+		}
+	  }, [state.page, state.points, state.pagePoints]);
+
 
   useEffect(() => {
     const getPageMedia = async () => {
@@ -64,10 +87,39 @@ function MainApp() {
     getPageMedia();
   }, [state.page]);
 
-  const handleImageLoad = (event) => {
-    const img = event.currentTarget;
-    setContentDimensions(img.offsetHeight, img.offsetWidth);
-    setIsImageLoaded(true);
+	useEffect(() => {
+		const nextPage = state.page + 1;
+		if (nextPage <= TOTAL_PAGES) {
+		const preloadImage = new Image();
+		preloadImage.src = `/images/layer1/${nextPage}.webp`;
+
+		const preloadVideo = document.createElement("video");
+		preloadVideo.src = `/videos/layer0/${nextPage}.webm`;
+		preloadVideo.preload = "auto";
+		}
+	}, [state.page]);
+
+	useEffect(() => {
+		const nextPage = state.page + 1;
+		if (nextPage <= TOTAL_PAGES) {
+			const linkImage = document.createElement("link");
+			linkImage.rel = "preload";
+			linkImage.href = `/images/layer1/${nextPage}.webp`;
+			linkImage.as = "image";
+			document.head.appendChild(linkImage);
+
+			const linkVideo = document.createElement("link");
+			linkVideo.rel = "preload";
+			linkVideo.href = `/videos/layer0/${nextPage}.webm`;
+			linkVideo.as = "video";
+			document.head.appendChild(linkVideo);
+		}
+	}, [state.page]);
+
+	const handleImageLoad = (event) => {
+	const img = event.currentTarget;
+	setContentDimensions(img.offsetHeight, img.offsetWidth);
+	setIsImageLoaded(true);
   };
 
   const handleVideoLoad = (event) => {
@@ -94,19 +146,24 @@ function MainApp() {
     return () => window.removeEventListener('resize', handleResize);
   }, [isImageLoaded, state.page, setContentDimensions]);
 
+
   const renderPageComponent = () => {
-    if (PAGE_START.includes(state.page)) {
-      return <PageStart />;
-    } else if (PAGE_BACK.includes(state.page) || PAGE_BACK_N.includes(state.page)) {
-      return <PageBack />;
-    } else if (PAGE_QUIZ.includes(state.page)) {
-      return <PageQuiz />;
-    } else if (PAGE_PP.includes(state.page)) {
-      return <PagePp />;
-    } else if (PAGE_RESULTS.includes(state.page)) {
-      return <PageResults starImageSrc={starImage} />;
-    }
-    return null;
+	if (PAGE_START.includes(state.page)) {
+	  return <PageStart />;
+	} else if (PAGE_BACK.includes(state.page) || PAGE_BACK_N.includes(state.page)) {
+	  return <PageBack />;
+	} else if (PAGE_QUIZ.includes(state.page)) {
+	  // รอให้ contentHeight มีค่าก่อน render PageQuiz
+	  if (state.contentHeight > 0) {
+		return <PageQuiz />;
+	  }
+	  return null; // หรือแสดง loading state ถ้าต้องการ
+	} else if (PAGE_PP.includes(state.page)) {
+	  return <PagePp />;
+	} else if (PAGE_RESULTS.includes(state.page)) {
+	  return <PageResults starImageSrc={starImage} />;
+	}
+	return null;
   };
 
   const shouldShowNavigationOverlay = NAVIGATION_ENABLED_PAGES.includes(state.page) &&
@@ -163,7 +220,9 @@ function MainApp() {
 export default function Home() {
   return (
     <AppStateProvider>
-      <MainApp />
+      <div className="bg-black min-h-screen">
+        <MainApp />
+      </div>
     </AppStateProvider>
   );
 }
