@@ -152,19 +152,19 @@ function MainApp() {
 
       if (totalPoints >= 0 && totalPoints <= 5.70) {
         starKey = 'ASTER';
-        starPath = '/images/stars/ASTER.png';
+        starPath = '/images/stars/ASTER.webp';
       } else if (totalPoints > 5.70 && totalPoints <= 6.20) {
         starKey = 'CASSIOPHIA';
-        starPath = '/images/stars/CASSIOPHIA.png';
+        starPath = '/images/stars/CASSIOPHIA.webp';
       } else if (totalPoints > 6.20 && totalPoints <= 6.70) {
         starKey = 'ESTELLA';
-        starPath = '/images/stars/ESTELLA.png';
+        starPath = '/images/stars/ESTELLA.webp';
       } else if (totalPoints > 6.70 && totalPoints <= 7.30) {
         starKey = 'LYNA';
-        starPath = '/images/stars/LYNA.png';
+        starPath = '/images/stars/LYNA.webp';
       } else {
         starKey = 'NOVA';
-        starPath = '/images/stars/NOVA.png';
+        starPath = '/images/stars/NOVA.webp';
       }
 
       // ใช้ภาพดาวจาก cache ถ้ามี
